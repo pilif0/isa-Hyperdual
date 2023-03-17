@@ -1,4 +1,4 @@
-chapter "Hyperdual Numbers"
+chapter "Hyperdual Numbers and Forward Differentiation"
 
 session "Hyperdual" (AFP) = "HOL-Analysis" +
   options [document = pdf, document_output = "output"]
