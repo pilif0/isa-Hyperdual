@@ -521,6 +521,8 @@ lemma twice_field_differentiable_at_exp_fun [simp, intro]:
 
 subsubsection\<open>Square Root\<close>
 
+(* Positive argument *)
+
 lemma deriv_real_sqrt [simp]: "x > 0 \<Longrightarrow> deriv sqrt x = inverse (sqrt x) / 2"
   using DERIV_imp_deriv DERIV_real_sqrt by blast
 
@@ -537,11 +539,6 @@ proof -
         (auto intro: derivative_eq_intros inv_sqrt_mult [THEN ssubst] inv_sqrt_mult2 [THEN ssubst]
               simp add: divide_simps power3_eq_cube)
 qed
-
-lemma deriv_deriv_real_sqrt':
-  assumes "x > 0"
-  shows "deriv (\<lambda>x. inverse (sqrt x) / 2) x = - inverse ((sqrt x)^3)/4"
-  by (simp add: DERIV_imp_deriv assms has_real_derivative_inverse_sqrt)
 
 lemma has_real_derivative_deriv_sqrt:
   assumes "x > 0"
@@ -584,7 +581,73 @@ lemma twice_field_differentiable_at_sqrt_fun [intro]:
   assumes "f twice_field_differentiable_at x"
     and "f x > 0"
   shows "(\<lambda>x. sqrt (f x)) twice_field_differentiable_at x"
-  by (simp add: assms(1) assms(2) twice_field_differentiable_at_compose)
+  by (simp add: assms twice_field_differentiable_at_compose)
+
+(* Negative argument *)
+
+lemma DERIV_real_sqrt_neg:
+  "x < 0 \<Longrightarrow> DERIV sqrt x :> - inverse (sqrt x) / 2"
+  using DERIV_real_sqrt_generic by simp
+
+lemma deriv_real_sqrt_neg [simp]:
+  "x < 0 \<Longrightarrow> deriv sqrt x = - inverse (sqrt x) / 2"
+  using DERIV_imp_deriv DERIV_real_sqrt_neg by blast
+
+lemma has_real_derivative_inverse_sqrt_neg:
+  assumes "x < 0"
+    shows "((\<lambda>x. - inverse (sqrt x) / 2) has_real_derivative - (inverse (sqrt x ^ 3) / 4)) (at x)"
+  using assms
+  apply (safe intro!: DERIV_imp_deriv derivative_eq_intros)
+           apply (simp_all add: power3_eq_cube)
+  apply (simp add: field_simps)
+  done
+
+lemma has_real_derivative_deriv_sqrt_neg:
+  assumes "x < 0"
+    shows "(deriv sqrt has_real_derivative - inverse (sqrt x ^ 3) / 4) (at x)"
+proof -
+  have "((\<lambda>x. - inverse (sqrt x) / 2) has_real_derivative - inverse (sqrt x ^ 3) / 4) (at x)"
+    using assms
+    apply (safe intro!: DERIV_imp_deriv derivative_eq_intros)
+             apply (simp_all add: power3_eq_cube)
+    apply (simp add: field_simps)
+    done
+  moreover
+  {fix xa :: real
+   assume "xa \<in> {..<0}"
+   then have "- inverse (sqrt xa) / 2 = deriv sqrt xa"
+     by simp
+  }
+  ultimately show ?thesis
+    using has_field_derivative_transform_within_open [where S="{..<0}" and f="(\<lambda>x. -inverse (sqrt x) / 2)"]
+    by (meson assms lessThan_iff open_lessThan)
+qed
+
+lemma deriv_deriv_real_sqrt_neg [simp]:
+  assumes "x < 0"
+  shows "deriv (deriv sqrt) x = - inverse ((sqrt x)^3)/4"
+  using DERIV_imp_deriv assms has_real_derivative_deriv_sqrt_neg by blast
+
+lemma twice_field_differentiable_at_sqrt_neg [simp, intro]:
+  assumes "x < 0"
+    shows "sqrt twice_field_differentiable_at x"
+proof -
+  have "sqrt field_differentiable_on {..<0}"
+    by (metis DERIV_real_sqrt_neg at_within_open field_differentiable_def field_differentiable_on_def
+        lessThan_iff open_lessThan)
+  moreover have "x \<in> interior {..<0}"
+    by (simp add: assms interior_open)
+  moreover have "deriv sqrt field_differentiable at x"
+    using assms field_differentiable_def has_real_derivative_deriv_sqrt_neg by blast
+  ultimately show ?thesis
+    using twice_field_differentiable_at_def by blast
+qed
+
+lemma twice_field_differentiable_at_sqrt_fun_neg [intro]:
+  assumes "f twice_field_differentiable_at x"
+    and "f x < 0"
+  shows "(\<lambda>x. sqrt (f x)) twice_field_differentiable_at x"
+  by (simp add: assms twice_field_differentiable_at_compose)
 
 subsubsection\<open>Natural Power\<close>
 
