@@ -24,7 +24,7 @@ next
 qed
 
 text\<open>We define the extension of a function to the hyperdual numbers.\<close>
-primcorec hypext :: "(('a :: real_normed_field) \<Rightarrow> 'a) \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual" (\<open>*h* _\<close> [80] 80)
+primcorec hypext :: "(('a :: real_normed_field) \<Rightarrow> 'a) \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual" ("*h* _" [80] 80)
   where
     "Base ((*h* f) x) = f (Base x)"
   | "Eps1 ((*h* f) x) = Eps1 x * deriv f (Base x)"

@@ -165,6 +165,8 @@ lemma hyp_fa_test_safe_code [code]:
   by (simp add: hypext_sqrt)
 
 text\<open>As a result, we can generate code for it\<close>
-export_code fa_test hyp_fa_test_safe in Haskell
+export_code open
+  fa_test hyp_fa_test_safe
+  in Haskell file_prefix "haskell/isabelle/src" (root: Hyperdual.Isabelle string_classes)
 
 end

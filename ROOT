@@ -10,6 +10,7 @@ session "Hyperdual" (AFP) = "HOL-Analysis" +
     HyperdualFunctionExtension
     LogisticFunction
     AnalyticTestFunction
+    CodeExport
   document_files
     "root.tex"
     "root.bib"

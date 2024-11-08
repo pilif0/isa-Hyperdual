@@ -1,0 +1,11 @@
+name: hyperdual-isabelle
+version: 0.1.0.0
+github: pilif0/isa-Hyperdual/haskell
+license: Apache-2.0
+author: Filip Smola
+category: Library, Formal Methods
+
+library:
+  source-dirs: src
+  dependencies:
+    - base >= 4.7 && < 5
