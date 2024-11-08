@@ -166,6 +166,14 @@ lemma hyp_fa_test_safe_code [code]:
 
 text\<open>As a result, we can generate code for it\<close>
 export_code open
+  (* Basic operations *)
+  "(+) :: ('a :: plus) hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  "(-) :: ('a :: minus) hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  "(*) :: ('a :: {plus,times}) hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  "scaleH :: ('a :: times) \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  "(/) :: ('a :: {inverse, ring_1}) hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  "inverse :: ('a :: {inverse, ring_1}) hyperdual \<Rightarrow> 'a hyperdual"
+  (* Test function and its (safe) hyperdual extension *)
   fa_test hyp_fa_test_safe
   in Haskell file_prefix "haskell/isabelle/src" (root: Hyperdual.Isabelle string_classes)
 
