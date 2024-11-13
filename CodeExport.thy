@@ -98,6 +98,108 @@ next
     using assms by (intro hyperdual_eqI) simp_all
 qed
 
+
+subsection\<open>Extension of @{const sqrt}\<close>
+(* Found: https://search.isabelle.in.tum.de/#details/default_Isabelle2024_AFP2024/Green.Derivs.5088.5389 *)
+lemma has_derivative_abs:
+  fixes a::real
+  assumes "a \<noteq> 0"
+  shows "(abs has_derivative ((*) (sgn a))) (at a)"
+proof -
+  have [simp]: "norm = abs"
+    using real_norm_def by force
+  show ?thesis
+    using has_derivative_norm [where 'a=real, simplified] assms
+    by (simp add: mult_commute_abs)
+qed
+
+lemma has_derivative_sgn:
+  fixes a::real
+  assumes "a \<noteq> 0"
+  shows "(sgn has_derivative (*) 0) (at a)"
+proof -
+  have "(sgn has_derivative (*) 0) (at a within {0<..})" if "0 < a"
+    unfolding sgn_real_def
+    apply (rule has_derivative_transform_within[where f = "\<lambda>x. 1" and d = 1])
+    apply (metis has_derivative_const lambda_zero)
+      apply simp
+    using that apply simp
+    apply simp
+    done
+  moreover have "(sgn has_derivative (*) 0) (at a within {..<0})" if "a < 0"
+    unfolding sgn_real_def
+    apply (rule has_derivative_transform_within[where f = "\<lambda>x. -1" and d = 1])
+    apply (metis has_derivative_const lambda_zero)
+      apply simp
+    using that apply simp
+    apply simp
+    done
+  moreover have "{0<..} \<union> {..<0} = UNIV - {0 :: real}"
+    by safe simp_all
+  ultimately have "(sgn has_derivative (*) 0) (at a within (UNIV - {0}))"
+    using assms
+    sorry
+  oops
+
+lemma deriv_abs:
+  fixes x :: real
+  shows "x \<noteq> 0 \<Longrightarrow> deriv abs x = sgn x"
+  by (simp add: has_derivative_abs DERIV_imp_deriv has_field_derivative_def)
+
+lemma deriv_deriv_abs:
+  fixes x :: real
+  shows "x \<noteq> 0 \<Longrightarrow> deriv (deriv abs) x = 0"
+  apply (subst DERIV_imp_deriv[where f' = 0])
+   apply (subst has_field_derivative_def)
+   apply (simp_all add: deriv_abs)
+  sorry
+
+primcorec hyp_abs :: "real hyperdual \<Rightarrow> real hyperdual"
+  where
+    "Base (hyp_abs x) = abs (Base x)"
+  | "Eps1 (hyp_abs x) = (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) * Eps1 x"
+  | "Eps2 (hyp_abs x) = (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) * Eps2 x"
+  | "Eps12 (hyp_abs x) = Eps12 x * (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) + Eps1 x * Eps2 x * (if Base x > 0 then 0 else if Base x < 0 then 0 else undefined)"
+
+lemma hypext_abs:
+  "*h* abs = hyp_abs"
+  apply standard
+  apply (rule hyperdual_eqI ; case_tac "0 < Base x" ; case_tac "Base x < 0")
+                 apply (simp_all add: not_less deriv_abs)
+  (* To safely replace hyperdual extension of abs with a function, we need a value for first
+      and second derivative at zero, where abs is not differentiable. *)
+  oops
+
+lemma hypext_abs:
+  assumes "Base x \<noteq> 0"
+    shows "(*h* abs) x = hyp_abs x"
+proof (cases "0 < Base x")
+  case True
+  then show ?thesis
+    by (intro hyperdual_eqI) (simp_all add: deriv_abs deriv_deriv_abs)
+next
+  case False
+  then show ?thesis
+    using assms by (intro hyperdual_eqI) (simp_all add: deriv_abs deriv_deriv_abs)
+qed
+
+subsection\<open>Iterative Square Root\<close>
+
+(* https://github.com/JuliaDiff/DualNumbers.jl/blob/5821433409922ebe7e7207167eb5d19fb114093c/test/automatic_differentiation_test.jl#L90 *)
+
+function itsqrt' :: "real hyperdual \<Rightarrow> real hyperdual \<Rightarrow> real hyperdual"
+  where "itsqrt' x it =
+  ( if Base (hyp_abs (it * it - x)) > 1/10^13
+      then itsqrt' x ((it + x/it) / Hyperdual 2 0 0 0)
+      else it)"
+  by pat_completeness auto
+termination itsqrt'
+  apply standard
+  sorry
+
+definition itsqrt :: "real hyperdual \<Rightarrow> real hyperdual"
+  where "itsqrt x = itsqrt' x x"
+
 subsection\<open>Analytic Test Function\<close>
 
 text\<open>Base function, an example used by Fike and Alonso\<close>
@@ -173,6 +275,7 @@ export_code open
   "scaleH :: ('a :: times) \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
   "(/) :: ('a :: {inverse, ring_1}) hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
   "inverse :: ('a :: {inverse, ring_1}) hyperdual \<Rightarrow> 'a hyperdual"
+  itsqrt
   (* Test function and its (safe) hyperdual extension *)
   fa_test hyp_fa_test_safe
   in Haskell file_prefix "haskell/isabelle/src" (root: Hyperdual.Isabelle string_classes)
