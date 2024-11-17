@@ -98,62 +98,6 @@ next
     using assms by (intro hyperdual_eqI) simp_all
 qed
 
-
-subsection\<open>Extension of @{const sqrt}\<close>
-(* Found: https://search.isabelle.in.tum.de/#details/default_Isabelle2024_AFP2024/Green.Derivs.5088.5389 *)
-lemma has_derivative_abs:
-  fixes a::real
-  assumes "a \<noteq> 0"
-  shows "(abs has_derivative ((*) (sgn a))) (at a)"
-proof -
-  have [simp]: "norm = abs"
-    using real_norm_def by force
-  show ?thesis
-    using has_derivative_norm [where 'a=real, simplified] assms
-    by (simp add: mult_commute_abs)
-qed
-
-lemma has_derivative_sgn:
-  fixes a::real
-  assumes "a \<noteq> 0"
-  shows "(sgn has_derivative (*) 0) (at a)"
-proof -
-  have "(sgn has_derivative (*) 0) (at a within {0<..})" if "0 < a"
-    unfolding sgn_real_def
-    apply (rule has_derivative_transform_within[where f = "\<lambda>x. 1" and d = 1])
-    apply (metis has_derivative_const lambda_zero)
-      apply simp
-    using that apply simp
-    apply simp
-    done
-  moreover have "(sgn has_derivative (*) 0) (at a within {..<0})" if "a < 0"
-    unfolding sgn_real_def
-    apply (rule has_derivative_transform_within[where f = "\<lambda>x. -1" and d = 1])
-    apply (metis has_derivative_const lambda_zero)
-      apply simp
-    using that apply simp
-    apply simp
-    done
-  moreover have "{0<..} \<union> {..<0} = UNIV - {0 :: real}"
-    by safe simp_all
-  ultimately have "(sgn has_derivative (*) 0) (at a within (UNIV - {0}))"
-    using assms
-    sorry
-  oops
-
-lemma deriv_abs:
-  fixes x :: real
-  shows "x \<noteq> 0 \<Longrightarrow> deriv abs x = sgn x"
-  by (simp add: has_derivative_abs DERIV_imp_deriv has_field_derivative_def)
-
-lemma deriv_deriv_abs:
-  fixes x :: real
-  shows "x \<noteq> 0 \<Longrightarrow> deriv (deriv abs) x = 0"
-  apply (subst DERIV_imp_deriv[where f' = 0])
-   apply (subst has_field_derivative_def)
-   apply (simp_all add: deriv_abs)
-  sorry
-
 primcorec hyp_abs :: "real hyperdual \<Rightarrow> real hyperdual"
   where
     "Base (hyp_abs x) = abs (Base x)"
