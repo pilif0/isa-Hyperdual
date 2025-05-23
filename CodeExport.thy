@@ -258,7 +258,6 @@ proof (induct x rule: hyp_sqrt_approx_main.induct)
     sorry
 qed
 
-
 end
 
 definition hyp_sqrt_approx :: "real \<Rightarrow> real hyperdual \<Rightarrow> real hyperdual"
@@ -295,8 +294,16 @@ proof standard
         apply (subst hyp_sqrt_approximation.hyp_sqrt_approx_main_impl)
           apply (unfold_locales, assumption, simp, simp)
         apply (subst hyp_sqrt_approximation.hypext_sqrt_approx_main[symmetric])
-          apply (unfold_locales, assumption, simp)
-        using hypext_compose
+         apply (unfold_locales, assumption, simp)
+        apply simp
+        apply (subst hypext_cadd[where a = 1, unfolded one_hyperdual_def[symmetric], symmetric])
+
+        apply (subst hypext_compose[where g = "\<lambda>x. x + 1" and f = abs and x = x, symmetric])
+        using twice_field_differentiable_at_abs apply metis
+        using twice_field_differentiable_at_cadd apply metis
+
+        apply (subst hypext_compose[where g = "sqrt_approximation.sqrt_approx_main \<epsilon> (abs (Base x))" and f = "\<lambda>x. abs x + 1" and x = x, symmetric])
+        using twice_field_differentiable_at_add apply blast
         sorry
     qed
   next
