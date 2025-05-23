@@ -3,6 +3,7 @@ theory CodeExport
     HyperdualFunctionExtension
     "HOL-Library.Code_Real_Approx_By_Float"
     "HOL-Library.Code_Target_Numeral"
+    Sqrt_Babylonian.Sqrt_Babylonian
 begin
 
 section\<open>Code Generation\<close>
@@ -98,12 +99,15 @@ next
     using assms by (intro hyperdual_eqI) simp_all
 qed
 
+subsection\<open>Extension of @{const abs}\<close>
+
 primcorec hyp_abs :: "real hyperdual \<Rightarrow> real hyperdual"
   where
     "Base (hyp_abs x) = abs (Base x)"
   | "Eps1 (hyp_abs x) = (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) * Eps1 x"
   | "Eps2 (hyp_abs x) = (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) * Eps2 x"
-  | "Eps12 (hyp_abs x) = Eps12 x * (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined) + Eps1 x * Eps2 x * (if Base x > 0 then 0 else if Base x < 0 then 0 else undefined)"
+  | "Eps12 (hyp_abs x) = Eps12 x * (if Base x > 0 then 1 else if Base x < 0 then - 1 else undefined)
+        + Eps1 x * Eps2 x * (if Base x > 0 then 0 else if Base x < 0 then 0 else undefined)"
 
 lemma hypext_abs:
   "*h* abs = hyp_abs"
@@ -125,6 +129,182 @@ next
   case False
   then show ?thesis
     using assms by (intro hyperdual_eqI) (simp_all add: deriv_abs deriv_deriv_abs)
+qed
+
+subsection\<open>Babylonian Square Root\<close>
+
+lemma hypext_If: (* conjecture! move if proved *)
+  shows "(*h* (\<lambda>x. if P x then f x else g x)) = (\<lambda>x. if P (Base x) then (*h* f) x else (*h* g) x)"
+  apply standard
+  apply (simp add: hypext.code)
+  apply safe
+  sorry
+
+(* need real normed field for hypext *)
+
+partial_function (tailrec) hyp_sqrt_approx_main_impl :: "'a :: {linordered_field, real_normed_field} \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual \<Rightarrow> 'a hyperdual"
+  where [code]: "hyp_sqrt_approx_main_impl \<epsilon> n x =
+  ( if Base (x * x - n) < \<epsilon>
+      then x
+      else hyp_sqrt_approx_main_impl \<epsilon> n ((n / x + x) / Hyperdual 2 0 0 0))"
+
+locale hyp_sqrt_approximation =
+  fixes \<epsilon> :: "'a :: {real_normed_field,floor_ceiling}"
+  and n :: "'a hyperdual"
+  assumes \<epsilon> : "\<epsilon> > 0"
+  and n: "Base n > 0"
+begin
+
+function hyp_sqrt_approx_main :: "'a hyperdual \<Rightarrow> 'a hyperdual" where
+  "hyp_sqrt_approx_main x =
+  ( if Base x > 0
+      then (if Base (x * x - n) < \<epsilon>
+        then x
+        else hyp_sqrt_approx_main ((n / x + x) / Hyperdual 2 0 0 0))
+      else 0)"
+  by pat_completeness auto
+
+termination hyp_sqrt_approx_main
+proof -
+  define er where "er x = Base (x * x / n - 1)" for x :: "'a hyperdual"
+  define c where "c = 2 * Base n / \<epsilon>"
+  define m where "m x = nat \<lfloor> c * er x \<rfloor>" for x :: "'a hyperdual"
+  have c: "c > 0" unfolding c_def using n \<epsilon> by auto
+  show ?thesis
+  proof
+    show "wf (measures [m])" by simp
+  next
+    fix x :: "'a hyperdual"
+    assume x: "0 < Base x" and xe: "\<not> Base (x * x - n) < \<epsilon>"
+    define y where "y = (n / x + x) / Hyperdual 2 0 0 0"
+    show "((n / x + x) / Hyperdual 2 0 0 0, x) \<in> measures [m]"
+      unfolding y_def[symmetric]
+    proof (rule measures_less)
+      from n have inv_n: "1 / Base n > 0" by auto
+      from xe have "Base (x * x - n) \<ge> \<epsilon>" by simp
+      from this[unfolded mult_le_cancel_left_pos[OF inv_n, of \<epsilon>, symmetric]]
+      have erxen: "er x \<ge> \<epsilon> / Base n" unfolding er_def using n by (simp add: field_simps)
+      have en: "\<epsilon> / Base n > 0" and ne: "Base n / \<epsilon> > 0" using \<epsilon> n by auto
+      from en erxen have erx: "er x > 0" by linarith
+      have pos: "er x * 4 + er x * (er x * 4) > 0" using erx
+        by (auto intro: add_pos_nonneg)
+      have "Base 2 * Base 2 = (4 :: 'a)"
+        by (metis numeral_Bit0_eq_double one_add_one one_hyperdual_simps(1) plus_hyperdual.simps(1))
+      then have "er y = 1 / 4 * Base (n / (x * x) - Hyperdual 2 0 0 0  + x * x / n)" unfolding er_def y_def using x n
+        by (simp add: field_simps)
+      also have "\<dots> = 1 / 4 * er x * er x / (1 + er x)" unfolding er_def using x n
+        by (simp add: field_simps)
+      finally have "er y = 1 / 4 * er x * er x / (1 + er x)" .
+      also have "\<dots> < 1 / 4 * (1 + er x) * er x / (1 + er x)" using erx erx pos
+        by (auto simp: field_simps)
+      also have "\<dots> = er x / 4" using erx by (simp add: field_simps)
+      finally have er_y_x: "er y \<le> er x / 4" by linarith
+      from erxen have "c * er x \<ge> 2" unfolding c_def mult_le_cancel_left_pos[OF ne, of _ "er x", symmetric]
+        using n \<epsilon> by (auto simp: field_simps)
+      hence pos: "\<lfloor>c * er x\<rfloor> > 0" "\<lfloor>c * er x\<rfloor> \<ge> 2" by auto
+      show "m y < m x" unfolding m_def nat_mono_iff[OF pos(1)]
+      proof -
+        have "\<lfloor>c * er y\<rfloor> \<le> \<lfloor>c * (er x / 4)\<rfloor>"
+          by (rule floor_mono, unfold mult_le_cancel_left_pos[OF c], rule er_y_x)
+        also have "\<dots> < \<lfloor>c * er x / 4 + 1\<rfloor>" by auto
+        also have "\<dots> \<le> \<lfloor>c * er x\<rfloor>"
+          by (rule floor_mono, insert pos(2), simp add: field_simps)
+        finally show "\<lfloor>c * er y\<rfloor> < \<lfloor>c * er x\<rfloor>" .
+      qed
+    qed
+  qed
+qed
+
+lemma hyp_sqrt_approx_main_impl:
+  "Base x > 0 \<Longrightarrow> hyp_sqrt_approx_main_impl \<epsilon> n x = hyp_sqrt_approx_main x"
+proof (induct x rule: hyp_sqrt_approx_main.induct)
+  case (1 x)
+  hence x: "Base x > 0" by auto
+  hence nx: "0 < Base ((n / x + x) / Hyperdual 2 0 0 0)" using n by (auto intro: pos_add_strict)
+  note simps = hyp_sqrt_approx_main_impl.simps[of _ _ x] hyp_sqrt_approx_main.simps[of x]
+  show ?case
+  proof (cases "Base (x * x - n) < \<epsilon>")
+    case True
+    thus ?thesis unfolding simps using x by auto
+  next
+    case False
+    show ?thesis using 1(1)[OF x False nx] unfolding simps using x False by auto
+  qed
+qed
+
+(* TODO left out soundness proof *)
+
+sublocale base_sqrt: sqrt_approximation \<epsilon> "Base n"
+  using \<epsilon> n [[show_sorts]] by unfold_locales
+
+lemma hypext_sqrt_approx_main:
+  "(*h* base_sqrt.sqrt_approx_main) x = hyp_sqrt_approx_main x"
+proof (induct x rule: hyp_sqrt_approx_main.induct)
+  case (1 x)
+
+  show ?case
+    apply (cases "Base x = 0")
+     apply (simp add: hypext_If of_comp_def)
+    apply (subst hyp_sqrt_approx_main.simps)
+    apply (subst base_sqrt.sqrt_approx_main.simps[abs_def])
+    apply (unfold hypext_If)
+    apply (simp del: hyp_sqrt_approx_main.simps base_sqrt.sqrt_approx_main.simps)
+    apply safe
+    using hypext_ident apply blast
+      apply (simp add: zero_hyperdual_def)
+     apply (subst 1[symmetric])
+       apply simp
+    apply simp
+    sorry
+qed
+
+
+end
+
+definition hyp_sqrt_approx :: "real \<Rightarrow> real hyperdual \<Rightarrow> real hyperdual"
+  where "hyp_sqrt_approx \<epsilon> x =
+  ( if \<epsilon> > 0
+      then (if Base x = 0
+        then 0
+        else let xpos = hyp_abs x in hyp_sqrt_approx_main_impl \<epsilon> xpos (xpos + 1))
+      else 0)"
+
+lemma
+  "(*h* sqrt_approx \<epsilon>) = hyp_sqrt_approx \<epsilon>"
+proof standard
+  fix x
+
+  show "(*h* sqrt_approx \<epsilon>) x = hyp_sqrt_approx \<epsilon> x"
+  proof (cases "0 < \<epsilon>")
+    case \<epsilon>: True
+    then show ?thesis
+    proof (cases "Base x = 0")
+      case True
+      then show ?thesis
+        using \<epsilon>
+        unfolding sqrt_approx_def hyp_sqrt_approx_def
+        by (simp add: hypext_If zero_hyperdual_def)
+    next
+      case False
+      then show ?thesis
+        using \<epsilon>
+        unfolding sqrt_approx_def hyp_sqrt_approx_def
+        apply (simp add: hypext_If zero_hyperdual_def Let_def)
+
+        apply (subst (1 2) hypext_abs[OF False, symmetric])
+        apply (subst hyp_sqrt_approximation.hyp_sqrt_approx_main_impl)
+          apply (unfold_locales, assumption, simp, simp)
+        apply (subst hyp_sqrt_approximation.hypext_sqrt_approx_main[symmetric])
+          apply (unfold_locales, assumption, simp)
+        using hypext_compose
+        sorry
+    qed
+  next
+    case False
+    then show ?thesis
+      unfolding sqrt_approx_def hyp_sqrt_approx_def
+      by (simp add: zero_hyperdual_def)
+  qed
 qed
 
 subsection\<open>Iterative Square Root\<close>
