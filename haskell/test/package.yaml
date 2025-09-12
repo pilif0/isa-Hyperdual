@@ -1,0 +1,15 @@
+name: hyperdual-test
+version: 0.1.0.0
+github: pilif0/isa-Hyperdual/haskell
+license: Apache-2.0
+author: Filip Smola
+category: Library, Formal Methods
+
+dependencies:
+  - base >= 4.7 && < 5
+  - hyperdual-isabelle
+
+executables:
+  test:
+    source-dirs: test
+    main: Main.hs

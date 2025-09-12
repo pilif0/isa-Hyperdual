@@ -1,0 +1,8 @@
+# Haskell Stack
+.stack-work/
+
+# Exported code
+isabelle/src/
+
+# Generated Cabal files
+*.cabal

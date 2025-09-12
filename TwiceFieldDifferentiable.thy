@@ -521,6 +521,8 @@ lemma twice_field_differentiable_at_exp_fun [simp, intro]:
 
 subsubsection\<open>Square Root\<close>
 
+(* Positive argument *)
+
 lemma deriv_real_sqrt [simp]: "x > 0 \<Longrightarrow> deriv sqrt x = inverse (sqrt x) / 2"
   using DERIV_imp_deriv DERIV_real_sqrt by blast
 
@@ -537,11 +539,6 @@ proof -
         (auto intro: derivative_eq_intros inv_sqrt_mult [THEN ssubst] inv_sqrt_mult2 [THEN ssubst]
               simp add: divide_simps power3_eq_cube)
 qed
-
-lemma deriv_deriv_real_sqrt':
-  assumes "x > 0"
-  shows "deriv (\<lambda>x. inverse (sqrt x) / 2) x = - inverse ((sqrt x)^3)/4"
-  by (simp add: DERIV_imp_deriv assms has_real_derivative_inverse_sqrt)
 
 lemma has_real_derivative_deriv_sqrt:
   assumes "x > 0"
@@ -584,7 +581,73 @@ lemma twice_field_differentiable_at_sqrt_fun [intro]:
   assumes "f twice_field_differentiable_at x"
     and "f x > 0"
   shows "(\<lambda>x. sqrt (f x)) twice_field_differentiable_at x"
-  by (simp add: assms(1) assms(2) twice_field_differentiable_at_compose)
+  by (simp add: assms twice_field_differentiable_at_compose)
+
+(* Negative argument *)
+
+lemma DERIV_real_sqrt_neg:
+  "x < 0 \<Longrightarrow> DERIV sqrt x :> - inverse (sqrt x) / 2"
+  using DERIV_real_sqrt_generic by simp
+
+lemma deriv_real_sqrt_neg [simp]:
+  "x < 0 \<Longrightarrow> deriv sqrt x = - inverse (sqrt x) / 2"
+  using DERIV_imp_deriv DERIV_real_sqrt_neg by blast
+
+lemma has_real_derivative_inverse_sqrt_neg:
+  assumes "x < 0"
+    shows "((\<lambda>x. - inverse (sqrt x) / 2) has_real_derivative - (inverse (sqrt x ^ 3) / 4)) (at x)"
+  using assms
+  apply (safe intro!: DERIV_imp_deriv derivative_eq_intros)
+           apply (simp_all add: power3_eq_cube)
+  apply (simp add: field_simps)
+  done
+
+lemma has_real_derivative_deriv_sqrt_neg:
+  assumes "x < 0"
+    shows "(deriv sqrt has_real_derivative - inverse (sqrt x ^ 3) / 4) (at x)"
+proof -
+  have "((\<lambda>x. - inverse (sqrt x) / 2) has_real_derivative - inverse (sqrt x ^ 3) / 4) (at x)"
+    using assms
+    apply (safe intro!: DERIV_imp_deriv derivative_eq_intros)
+             apply (simp_all add: power3_eq_cube)
+    apply (simp add: field_simps)
+    done
+  moreover
+  {fix xa :: real
+   assume "xa \<in> {..<0}"
+   then have "- inverse (sqrt xa) / 2 = deriv sqrt xa"
+     by simp
+  }
+  ultimately show ?thesis
+    using has_field_derivative_transform_within_open [where S="{..<0}" and f="(\<lambda>x. -inverse (sqrt x) / 2)"]
+    by (meson assms lessThan_iff open_lessThan)
+qed
+
+lemma deriv_deriv_real_sqrt_neg [simp]:
+  assumes "x < 0"
+  shows "deriv (deriv sqrt) x = - inverse ((sqrt x)^3)/4"
+  using DERIV_imp_deriv assms has_real_derivative_deriv_sqrt_neg by blast
+
+lemma twice_field_differentiable_at_sqrt_neg [simp, intro]:
+  assumes "x < 0"
+    shows "sqrt twice_field_differentiable_at x"
+proof -
+  have "sqrt field_differentiable_on {..<0}"
+    by (metis DERIV_real_sqrt_neg at_within_open field_differentiable_def field_differentiable_on_def
+        lessThan_iff open_lessThan)
+  moreover have "x \<in> interior {..<0}"
+    by (simp add: assms interior_open)
+  moreover have "deriv sqrt field_differentiable at x"
+    using assms field_differentiable_def has_real_derivative_deriv_sqrt_neg by blast
+  ultimately show ?thesis
+    using twice_field_differentiable_at_def by blast
+qed
+
+lemma twice_field_differentiable_at_sqrt_fun_neg [intro]:
+  assumes "f twice_field_differentiable_at x"
+    and "f x < 0"
+  shows "(\<lambda>x. sqrt (f x)) twice_field_differentiable_at x"
+  by (simp add: assms twice_field_differentiable_at_compose)
 
 subsubsection\<open>Natural Power\<close>
 
@@ -708,6 +771,93 @@ lemma twice_field_differentiable_at_divide [intro]:
       and "g x \<noteq> 0"
     shows "(\<lambda>x. f x / g x) twice_field_differentiable_at x"
   by (simp add: assms divide_inverse twice_field_differentiable_at_mult)
+
+subsubsection\<open>Absolute value\<close>
+
+(* Found: https://search.isabelle.in.tum.de/#details/default_Isabelle2024_AFP2024/Green.Derivs.5088.5389 *)
+lemma has_derivative_abs:
+  fixes a::real
+  assumes "a \<noteq> 0"
+  shows "(abs has_derivative ((*) (sgn a))) (at a)"
+proof -
+  have [simp]: "norm = abs"
+    using real_norm_def by force
+  show ?thesis
+    using has_derivative_norm [where 'a=real, simplified] assms
+    by (simp add: mult_commute_abs)
+qed
+
+lemma deriv_abs:
+  fixes x :: real
+  shows "x \<noteq> 0 \<Longrightarrow> deriv abs x = sgn x"
+  by (simp add: has_derivative_abs DERIV_imp_deriv has_field_derivative_def)
+
+lemma has_derivative_sgn:
+  fixes x :: real
+  assumes x_not_0: "x \<noteq> 0"
+  shows "(sgn has_real_derivative 0) (at x)"
+proof - 
+  have "((\<lambda>x. x / norm x) has_real_derivative 0) (at x)"
+  proof - 
+    have "(abs has_real_derivative (sgn x)) (at x)"
+      by (simp add: has_derivative_abs has_field_derivative_def x_not_0)
+    moreover have "\<bar>x\<bar> = x * sgn x"
+      using linordered_idom_class.abs_sgn by blast
+    ultimately show ?thesis using x_not_0 
+      by (auto intro!: derivative_eq_intros)
+  qed
+  then show ?thesis
+    by (simp add: has_derivative_transform has_field_derivative_def real_sgn_eq) 
+qed
+
+lemma deriv_sgn:
+  fixes x :: real
+  shows "x \<noteq> 0 \<Longrightarrow> deriv sgn x = 0"
+  using DERIV_imp_deriv has_derivative_sgn by blast
+
+lemma has_real_derivative_deriv_abs:
+  fixes x :: real
+  assumes "x \<noteq> 0"
+  shows "(deriv abs has_real_derivative 0) (at x)"
+proof -
+  have "\<forall>\<^sub>F x in nhds x. deriv abs x = sgn x"
+    by (smt (verit) assms deriv_abs eventually_mono t1_space_nhds)
+  then show ?thesis
+    by (simp add: DERIV_cong_ev has_derivative_sgn assms)
+qed
+
+lemma deriv_deriv_abs:
+  fixes x :: real
+  shows "x \<noteq> 0 \<Longrightarrow> deriv (deriv abs) x = 0"
+  using DERIV_imp_deriv has_real_derivative_deriv_abs by blast
+
+lemma field_differentiable_at_abs [simp, intro]:
+  fixes x :: real
+  assumes "x \<noteq> 0"
+  shows "abs field_differentiable (at x)"
+  using assms field_differentiable_def has_derivative_abs has_field_derivative_def by blast
+
+lemma field_differentiable_at_sgn [simp, intro]:
+  fixes x :: real
+  assumes "x \<noteq> 0"
+  shows "sgn field_differentiable (at x)"
+  using assms field_differentiable_def has_derivative_sgn by auto
+
+lemma twice_field_differentiable_at_abs [simp, intro]:
+  fixes x :: real
+  assumes "x \<noteq> 0"
+  shows "abs twice_field_differentiable_at x"
+proof -
+  have "abs field_differentiable at x within {x. x \<noteq> 0}"
+    using assms field_differentiable_at_within by blast
+  moreover have "x \<in> interior {x. x \<noteq> 0}"
+    by (metis (mono_tags, lifting) assms interiorI mem_Collect_eq subsetI t1_space)
+  moreover have "deriv abs field_differentiable at x"
+    using assms field_differentiable_def has_real_derivative_deriv_abs by blast
+  ultimately show ?thesis
+    by (metis (mono_tags, lifting) field_differentiable_at_abs field_differentiable_at_within 
+        field_differentiable_on_def mem_Collect_eq twice_field_differentiable_at_def)
+qed
 
 subsubsection\<open>Polynomial\<close>
 
